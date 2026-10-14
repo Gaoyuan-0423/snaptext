@@ -195,7 +195,7 @@ function about() {
       '截图 → 本地 OCR → 免费翻译\n' +
       'OCR 完全离线（Tesseract，Apache-2.0）。\n' +
       '开源软件，遵循 MIT 许可证。\n' +
-      'https://github.com/your-name/snaptext',
+      'https://github.com/Gaoyuan-0423/snaptext',
     buttons: ['好的'],
   });
 }

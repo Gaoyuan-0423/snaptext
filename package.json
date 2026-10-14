@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-name/snaptext"
+    "url": "https://github.com/Gaoyuan-0423/snaptext"
   },
   "scripts": {
     "start": "electron .",

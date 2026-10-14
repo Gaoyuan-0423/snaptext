@@ -29,7 +29,7 @@
 ### 从源码运行（开发者）
 
 ```bash
-git clone https://github.com/your-name/snaptext
+git clone https://github.com/Gaoyuan-0423/snaptext
 cd snaptext
 npm install
 npm start
