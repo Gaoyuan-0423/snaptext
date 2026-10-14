@@ -1,0 +1,10 @@
+node_modules/
+dist/
+out/
+build/*.icns
+build/*.ico
+.DS_Store
+*.log
+# 语言数据体积较大，用 `npm run fetch:tessdata` 按需下载
+resources/tessdata/*.traineddata
+resources/tessdata/*.traineddata.gz

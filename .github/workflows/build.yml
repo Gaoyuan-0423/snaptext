@@ -1,0 +1,38 @@
+name: build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch OCR language data (offline-first)
+        run: npm run fetch:tessdata
+
+      - name: Build packages
+        run: npx electron-builder --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: snaptext-${{ runner.os }}
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.exe

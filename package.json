@@ -1,0 +1,67 @@
+{
+  "name": "snaptext",
+  "version": "0.1.0",
+  "description": "Screenshot → OCR → Translate. Free & open-source, works offline. 截图识字：免费开源的截图文字识别与翻译工具（macOS / Windows）",
+  "main": "src/main/main.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-name/snaptext"
+  },
+  "scripts": {
+    "start": "electron .",
+    "test:ocr": "electron scripts/test-ocr.js",
+    "fetch:tessdata": "node scripts/fetch-tessdata.js",
+    "icons": "node scripts/gen-icons.js",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "tesseract.js": "^5.1.1"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "org.snaptext.app",
+    "productName": "SnapText",
+    "directories": {
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "resources/icons/*",
+      "!**/*.md"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/tessdata",
+        "to": "tessdata",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/tesseract.js/**",
+      "node_modules/tesseract.js-core/**"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

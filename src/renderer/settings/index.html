@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'" />
+  <title>SnapText 设置</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 16px 20px; font: 14px -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; color: #111827; }
+    h2 { font-size: 15px; margin: 0 0 14px; }
+    .row { display: flex; align-items: center; margin-bottom: 14px; gap: 10px; }
+    .row label { width: 110px; color: #374151; flex-shrink: 0; }
+    .row .hint { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+    select, input[type=text] { flex: 1; font: inherit; padding: 5px 8px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; }
+    select:focus, input:focus { outline: 2px solid rgba(59,130,246,.35); border-color: #3b82f6; }
+    footer { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 8px; background: #fff; }
+    button { font: inherit; padding: 5px 18px; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; }
+    button.primary { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+    #saved { color: #16a34a; font-size: 12px; align-self: center; margin-right: auto; opacity: 0; transition: opacity .3s; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h2>SnapText 设置</h2>
+
+  <div class="row">
+    <label>快捷键</label>
+    <div style="flex:1">
+      <input type="text" id="shortcut" placeholder="CommandOrControl+Shift+1" />
+      <div class="hint">Electron accelerator 格式，如 CommandOrControl+Shift+1 / Alt+X。保存后生效。</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <label>识别语言</label>
+    <select id="ocrLangs">
+      <option value="chi_sim+eng">中文简体 + 英文</option>
+      <option value="chi_tra+eng">中文繁体 + 英文</option>
+      <option value="eng">英文</option>
+      <option value="jpn+eng">日文 + 英文</option>
+      <option value="kor+eng">韩文 + 英文</option>
+      <option value="chi_sim+chi_tra+eng">简繁中文 + 英文</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <label>翻译服务</label>
+    <select id="provider">
+      <option value="google">Google 免费接口（无需密钥）</option>
+      <option value="libre">LibreTranslate（可自建）</option>
+    </select>
+  </div>
+
+  <div class="row hidden" id="libreRow">
+    <label>Libre 地址</label>
+    <input type="text" id="libreUrl" placeholder="https://libretranslate.com" />
+  </div>
+
+  <div class="row">
+    <label>翻译成</label>
+    <select id="targetLang">
+      <option value="zh-CN">中文（简体）</option>
+      <option value="zh-TW">中文（繁体）</option>
+      <option value="en">English</option>
+      <option value="ja">日本語</option>
+      <option value="ko">한국어</option>
+      <option value="fr">Français</option>
+      <option value="de">Deutsch</option>
+      <option value="ru">Русский</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <label>识别后自动复制</label>
+    <input type="checkbox" id="autoCopy" style="transform: scale(1.2)" />
+  </div>
+
+  <div class="row">
+    <label>开机自启</label>
+    <input type="checkbox" id="launchAtLogin" style="transform: scale(1.2)" />
+  </div>
+
+  <footer>
+    <span id="saved">已保存 ✓</span>
+    <button id="cancel">关闭</button>
+    <button id="save" class="primary">保存</button>
+  </footer>
+
+  <script>
+    'use strict';
+    const { ipcRenderer } = require('electron');
+    const $ = (id) => document.getElementById(id);
+
+    (async () => {
+      const s = await ipcRenderer.invoke('settings:get');
+      $('shortcut').value = s.shortcut;
+      $('ocrLangs').value = s.ocrLangs;
+      $('provider').value = s.provider;
+      $('libreUrl').value = s.libreUrl;
+      $('targetLang').value = s.targetLang;
+      $('autoCopy').checked = s.autoCopy;
+      $('launchAtLogin').checked = s.launchAtLogin;
+      $('libreRow').classList.toggle('hidden', s.provider !== 'libre');
+    })();
+
+    $('provider').onchange = () => {
+      $('libreRow').classList.toggle('hidden', $('provider').value !== 'libre');
+    };
+
+    $('save').onclick = () => {
+      ipcRenderer.send('settings:save', {
+        shortcut: $('shortcut').value.trim(),
+        ocrLangs: $('ocrLangs').value,
+        provider: $('provider').value,
+        libreUrl: $('libreUrl').value.trim(),
+        targetLang: $('targetLang').value,
+        autoCopy: $('autoCopy').checked,
+        launchAtLogin: $('launchAtLogin').checked,
+      });
+      $('saved').style.opacity = 1;
+      setTimeout(() => ($('saved').style.opacity = 0), 1500);
+    };
+
+    $('cancel').onclick = () => window.close();
+  </script>
+</body>
+</html>

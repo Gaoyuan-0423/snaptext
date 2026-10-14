@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data:" />
+  <title>识别结果</title>
+  <style>
+    :root { --line: #e5e7eb; --blue: #3b82f6; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; font: 14px -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; color: #111827; display: flex; flex-direction: column; background: #fff; }
+    #titlebar { -webkit-app-region: drag; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: #f9fafb; }
+    #titlebar .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--blue); }
+    #titlebar .title { flex: 1; font-weight: 600; font-size: 13px; }
+    #titlebar button { -webkit-app-region: no-drag; }
+    main { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    #shot { max-height: 120px; width: auto; max-width: 100%; align-self: center; border: 1px solid var(--line); border-radius: 6px; display: none; }
+    #status { color: #6b7280; font-size: 12px; min-height: 16px; }
+    .bar { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; width: 0; background: var(--blue); transition: width .15s; }
+    textarea { width: 100%; flex: 1; min-height: 90px; resize: none; border: 1px solid var(--line); border-radius: 6px; padding: 8px; font: inherit; line-height: 1.5; }
+    textarea:focus { outline: 2px solid rgba(59,130,246,.35); border-color: var(--blue); }
+    #transOut { background: #f0f9ff; display: none; }
+    label.sec { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    footer { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); }
+    button { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 5px 14px; font: inherit; cursor: pointer; }
+    button:hover { background: #f3f4f6; }
+    button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    button.primary:hover { background: #2563eb; }
+    button:disabled { opacity: .5; cursor: default; }
+    #autoCopied { color: #16a34a; font-size: 12px; margin-left: auto; align-self: center; display: none; }
+  </style>
+</head>
+<body>
+  <div id="titlebar">
+    <span class="dot"></span>
+    <span class="title">SnapText 识别结果</span>
+  </div>
+  <main>
+    <img id="shot" />
+    <div id="status">正在截取…</div>
+    <div class="bar"><i id="prog"></i></div>
+    <textarea id="text" placeholder="识别文本" spellcheck="false"></textarea>
+    <label class="sec" id="transLabel">翻译结果</label>
+    <textarea id="transOut" spellcheck="false"></textarea>
+  </main>
+  <footer>
+    <button id="copy">复制</button>
+    <button id="translate" class="primary">翻译</button>
+    <button id="pin">置顶</button>
+    <button id="closeWin">关闭</button>
+    <span id="autoCopied">✓ 已自动复制</span>
+  </footer>
+  <script>
+    'use strict';
+    const { ipcRenderer } = require('electron');
+
+    const $ = (id) => document.getElementById(id);
+    const statusEl = $('status'), progEl = $('prog'), textEl = $('text'),
+          transEl = $('transOut'), transLabel = $('transLabel'),
+          imgEl = $('shot'), copiedEl = $('autoCopied'),
+          btnTranslate = $('translate'), btnPin = $('pin');
+
+    function reset() {
+      transEl.style.display = 'none';
+      transLabel.style.display = 'none';
+      transEl.value = '';
+      copiedEl.style.display = 'none';
+      btnTranslate.disabled = true;
+      progEl.style.width = '0';
+    }
+
+    ipcRenderer.on('result:new', (_e, { image }) => {
+      reset();
+      textEl.value = '';
+      imgEl.src = image;
+      imgEl.style.display = 'block';
+      statusEl.textContent = '识别中…（首次运行需准备语言数据，可能较慢）';
+    });
+
+    ipcRenderer.on('result:progress', (_e, p) => {
+      if (p < 0) statusEl.textContent = '准备语言数据 / 初始化引擎…';
+      else { statusEl.textContent = `识别中… ${p}%`; progEl.style.width = p + '%'; }
+    });
+
+    ipcRenderer.on('result:ocr-done', (_e, { text, elapsed, autoCopied }) => {
+      progEl.style.width = '100%';
+      textEl.value = text;
+      statusEl.textContent = text ? `完成，用时 ${elapsed}s` : '未识别到文字（可尝试框大一点或换个角度）';
+      btnTranslate.disabled = !text;
+      if (autoCopied) copiedEl.style.display = 'inline';
+    });
+
+    ipcRenderer.on('result:ocr-error', (_e, msg) => {
+      statusEl.textContent = '识别失败：' + msg;
+    });
+
+    $('copy').onclick = () => {
+      const v = textEl.value;
+      if (v) ipcRenderer.send('copy:text', v);
+      copiedEl.style.display = 'inline';
+      setTimeout(() => copiedEl.style.display = 'none', 1200);
+    };
+
+    btnTranslate.onclick = async () => {
+      const text = textEl.value.trim();
+      if (!text) return;
+      btnTranslate.disabled = true;
+      transEl.style.display = 'block';
+      transLabel.style.display = 'block';
+      transEl.value = '翻译中…';
+      try {
+        const out = await ipcRenderer.invoke('translate:run', text);
+        transEl.value = out;
+      } catch (err) {
+        transEl.value = '翻译失败：' + (err.message || err) +
+          '\n\n提示：Google 免费接口偶尔不可用，可在设置里切换 LibreTranslate。';
+      } finally {
+        btnTranslate.disabled = false;
+      }
+    };
+
+    let pinned = true;
+    btnPin.onclick = () => {
+      pinned = !pinned;
+      ipcRenderer.send('result:toggle-pin');
+      btnPin.textContent = pinned ? '取消置顶' : '置顶';
+    };
+
+    $('closeWin').onclick = () => ipcRenderer.send('result:close');
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') ipcRenderer.send('result:close');
+    });
+  </script>
+</body>
+</html>
