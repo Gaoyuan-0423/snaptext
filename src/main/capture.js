@@ -11,6 +11,7 @@ const {
   ipcMain,
   dialog,
   shell,
+  systemPreferences,
 } = require('electron');
 const path = require('path');
 
@@ -38,6 +39,17 @@ async function start(onSelected) {
   if (inFlight) return;
   inFlight = true;
   try {
+    // macOS 屏幕录制权限状态：not-determined / granted / denied / restricted
+    const mediaStatus = process.platform === 'darwin'
+      ? systemPreferences.getMediaAccessStatus('screen')
+      : 'granted';
+    console.log('[capture] screen media access status:', mediaStatus);
+    if (mediaStatus === 'denied') {
+      cleanup();
+      openScreenRecordingGuide();
+      return;
+    }
+
     const displays = screen.getAllDisplays();
 
     // thumbnailSize 取所有屏幕中最大的像素需求，避免高分屏截图被缩小
@@ -53,6 +65,10 @@ async function start(onSelected) {
       thumbnailSize: { width: tw, height: th },
     });
     if (sources.length === 0) throw new Error('NO_SOURCES');
+    console.log(
+      '[capture] sources:', sources.length,
+      'emptyThumbnails:', sources.filter((s) => s.thumbnail.isEmpty()).length
+    );
 
     let gotAny = false;
     for (const d of displays) {

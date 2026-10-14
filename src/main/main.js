@@ -71,9 +71,11 @@ function registerShortcut() {
   globalShortcut.unregisterAll();
   const acc = settings.get('shortcut');
   try {
-    globalShortcut.register(acc, () => startCapture());
-    return true;
-  } catch {
+    const ok = globalShortcut.register(acc, () => startCapture());
+    console.log('[snaptext] shortcut', acc, ok ? 'registered' : 'FAILED to register');
+    return ok;
+  } catch (err) {
+    console.log('[snaptext] shortcut', acc, 'threw:', err.message);
     return false;
   }
 }
@@ -256,8 +258,18 @@ app.whenReady().then(() => {
   }
   if (process.platform === 'darwin') app.dock.hide(); // 纯菜单栏应用
   setupTray();
-  registerShortcut();
+  if (!registerShortcut()) {
+    dialog.showErrorBox(
+      '快捷键不可用',
+      `「${settings.get('shortcut')}」注册失败（可能被其他应用占用）。\n` +
+        '请在 托盘图标 → 设置 里换一个快捷键组合。'
+    );
+  }
   wireIpc();
+  // 调试/测试入口：electron . --snaptext-capture 启动后直接触发一次截图流程
+  if (process.argv.includes('--snaptext-capture')) {
+    setTimeout(() => startCapture(), 800);
+  }
 });
 
 app.on('window-all-closed', () => {
