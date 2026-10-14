@@ -106,13 +106,18 @@ async function onSelected(image, display, rect) {
 
   const t0 = Date.now();
   try {
-    const text = await ocr.recognizeBuffer(image.toPNG(), settings.get('ocrLangs'), (m) => {
-      if (m.status === 'recognizing text') {
-        win.webContents.send('result:progress', Math.round((m.progress || 0) * 100));
-      } else if (m.status === 'loading language traineddata' || m.status === 'loading tesseract core') {
-        win.webContents.send('result:progress', -1); // -1 = 正在准备语言数据
+    const text = await ocr.recognizeBuffer(
+      image.toPNG(),
+      settings.get('ocrLangs'),
+      settings.get('ocrEngine'),
+      (m) => {
+        if (m.status === 'recognizing text') {
+          win.webContents.send('result:progress', Math.round((m.progress || 0) * 100));
+        } else if (m.status === 'loading language traineddata' || m.status === 'loading tesseract core') {
+          win.webContents.send('result:progress', -1); // -1 = 正在准备语言数据
+        }
       }
-    });
+    );
     const trimmed = text.trim();
     if (settings.get('autoCopy') && trimmed) {
       clipboard.writeText(trimmed);
@@ -160,7 +165,7 @@ function openSettings() {
   }
   settingsWin = new BrowserWindow({
     width: 480,
-    height: 560,
+    height: 620,
     resizable: false,
     title: 'SnapText 设置',
     show: false,

@@ -2,22 +2,21 @@
 <html>
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data:" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'" />
   <title>capture</title>
   <style>
-    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; cursor: crosshair; background: #000; }
-    #shot { position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; }
+    /* 完全透明的实时选区层：屏幕保持实时显示，只在上面画选框边线 */
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; cursor: crosshair; background: transparent; }
     #mask { position: absolute; inset: 0; width: 100%; height: 100%; }
     #tip {
       position: absolute; left: 50%; top: 24px; transform: translateX(-50%);
       color: #fff; font: 13px -apple-system, "Segoe UI", sans-serif;
-      background: rgba(0,0,0,.55); padding: 6px 14px; border-radius: 14px;
-      pointer-events: none; opacity: .9;
+      background: rgba(0,0,0,.6); padding: 6px 14px; border-radius: 14px;
+      pointer-events: none; opacity: .92;
     }
   </style>
 </head>
 <body>
-  <img id="shot" draggable="false" />
   <canvas id="mask"></canvas>
   <div id="tip">拖拽框选要识别的区域 · 双击全屏 · Esc / 右键取消</div>
   <script>
@@ -28,9 +27,9 @@
     let start = null;
     let rect = null;
 
-    const img = document.getElementById('shot');
     const canvas = document.getElementById('mask');
     const ctx = canvas.getContext('2d');
+    const tip = document.getElementById('tip');
 
     function resizeCanvas() {
       canvas.width = window.innerWidth;
@@ -39,28 +38,21 @@
     window.addEventListener('resize', resizeCanvas);
 
     function draw() {
-      const w = canvas.width, h = canvas.height;
-      ctx.clearRect(0, 0, w, h);
-      if (!rect) {
-        ctx.fillStyle = 'rgba(0,0,0,0.35)';
-        ctx.fillRect(0, 0, w, h);
-        return;
-      }
-      // 选区外压暗，选区内透出原图
-      ctx.fillStyle = 'rgba(0,0,0,0.45)';
-      ctx.fillRect(0, 0, w, rect.y);
-      ctx.fillRect(0, rect.y + rect.height, w, h - rect.y - rect.height);
-      ctx.fillRect(0, rect.y, rect.x, rect.height);
-      ctx.fillRect(rect.x + rect.width, rect.y, w - rect.x - rect.width, rect.height);
-      // 边框 + 尺寸标签
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!rect) return;
+      tip.style.display = 'none';
+      // 黑白双线边框，任意背景上都清晰（同系统截图样式）
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+      ctx.strokeRect(rect.x - 0.5, rect.y - 0.5, rect.width + 1, rect.height + 1);
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.strokeRect(rect.x + 0.5, rect.y + 0.5, rect.width - 1, rect.height - 1);
+      // 尺寸标签
       const label = `${Math.round(rect.width)} × ${Math.round(rect.height)}`;
       ctx.font = '12px -apple-system, "Segoe UI", sans-serif';
       const tw = ctx.measureText(label).width + 12;
       const ly = rect.y - 26 < 4 ? rect.y + 6 : rect.y - 26;
-      ctx.fillStyle = 'rgba(59,130,246,0.95)';
+      ctx.fillStyle = 'rgba(0,0,0,0.72)';
       ctx.fillRect(rect.x, ly, tw, 20);
       ctx.fillStyle = '#fff';
       ctx.fillText(label, rect.x + 6, ly + 14);
@@ -68,9 +60,7 @@
 
     ipcRenderer.on('overlay:init', (_e, cfg) => {
       displayId = cfg.displayId;
-      img.src = cfg.imageUrl;
       resizeCanvas();
-      draw();
     });
 
     window.addEventListener('mousedown', (e) => {
@@ -93,7 +83,8 @@
     window.addEventListener('mouseup', (e) => {
       if (e.button !== 0 || !start) return;
       if (rect.width < 5 || rect.height < 5) { // 误触：忽略并继续等待
-        start = null; rect = null; draw();
+        start = null; rect = null; ctx.clearRect(0, 0, canvas.width, canvas.height);
+        tip.style.display = '';
         return;
       }
       ipcRenderer.send('capture:selected', { displayId, rect, isFull: false });

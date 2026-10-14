@@ -8,6 +8,8 @@ const DEFAULTS = {
   shortcut: 'CommandOrControl+Shift+1',
   // OCR 语言包，+ 分隔。常用：eng / chi_sim+eng / chi_tra+eng / jpn+eng / kor+eng
   ocrLangs: 'chi_sim+eng',
+  // OCR 引擎：auto（macOS 用系统 Vision，其余平台 Tesseract）| native | tesseract
+  ocrEngine: 'auto',
   // 翻译目标语言（Google 语言代码，如 zh-CN / en / ja / ko）
   targetLang: 'zh-CN',
   // 翻译服务：'google'（免费无密钥）| 'libre'（自建/公共 LibreTranslate）

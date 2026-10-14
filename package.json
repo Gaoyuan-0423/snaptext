@@ -1,6 +1,6 @@
 {
   "name": "snaptext",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Screenshot → OCR → Translate. Free & open-source, works offline. 截图识字：免费开源的截图文字识别与翻译工具（macOS / Windows）",
   "main": "src/main/main.js",
   "license": "MIT",
@@ -31,6 +31,7 @@
     "files": [
       "src/**/*",
       "resources/icons/*",
+      "resources/bin/*",
       "!**/*.md"
     ],
     "extraResources": [
@@ -44,7 +45,8 @@
     ],
     "asarUnpack": [
       "node_modules/tesseract.js/**",
-      "node_modules/tesseract.js-core/**"
+      "node_modules/tesseract.js-core/**",
+      "resources/bin/**"
     ],
     "mac": {
       "category": "public.app-category.utilities",

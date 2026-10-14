@@ -8,9 +8,10 @@
 ## 功能
 
 - ⌨️ **全局快捷键**（默认 `⇧⌘1` / `Ctrl+Shift+1`，可自定义）
-- 🖼️ **框选截图**：多显示器支持，双击全屏，Esc/右键取消
-- 🔍 **本地 OCR**：Tesseract 引擎，离线、免费、无密钥、无遥测
-  - 简体中文/繁体中文/英文/日文/韩文（可组合）
+- 🖼️ **实时框选**：屏幕不冻结、不变暗（同系统 ⌘⇧4 手感），多显示器支持，双击全屏，Esc/右键取消
+- 🔍 **双 OCR 引擎**：
+  - macOS 系统 Vision（默认）：原生、**0.3 秒级**、中文无字间空格、无需下载语言数据
+  - Tesseract：跨平台兜底，离线、免费、无密钥（简繁中文/英文/日文/韩文）
 - 🌐 **免费翻译**：
   - Google 免费接口（无需密钥）
   - LibreTranslate（公共实例或自建）
@@ -70,9 +71,10 @@ npm run fetch:tessdata && npm run dist   # 内置语言数据的完全离线包
 ## 开发
 
 ```bash
-npm start          # 启动应用
-npm run test:ocr   # 无头自测：离屏 canvas 画图 → OCR 管道 → 断言（应输出 TEST PASS）
-npm run icons      # 重新生成图标（纯 Node，无依赖）
+npm start               # 启动应用（macOS 首次建议先跑下一行编译 Vision 引擎）
+bash scripts/build-vision-helper.sh   # 编译 macOS 系统 Vision OCR helper（需 Xcode CLT）
+npm run test:ocr        # 无头自测：双引擎识别断言（应输出 PASS）
+npm run icons           # 重新生成图标（纯 Node，无依赖）
 ```
 
 目录结构：
@@ -97,11 +99,11 @@ scripts/
 
 ## 路线图（欢迎 PR）
 
+- [ ] Windows 系统原生 OCR 引擎（Windows.Media.Ocr）
 - [ ] 贴图（截图后钉在桌面上）
 - [ ] 识别历史记录
 - [ ] 连续识别模式
 - [ ] 接入 LLM API 翻译/解释（用户自填 key，设置页已预留 provider 架构）
-- [ ] 系统原生 OCR 引擎可选（macOS Vision / Windows.Media.Ocr，更快）
 
 ## 已知限制
 

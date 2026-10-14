@@ -1,9 +1,9 @@
 'use strict';
-// 截图流程：
-//   1. desktopCapturer 抓取每块屏幕的画面（相当于“冻结”屏幕）
-//   2. 每块屏幕盖上一个全屏无边框窗口，用户拖框选区
-//   3. 选区矩形发回主进程，用 NativeImage.crop 裁剪出图片
-// macOS 首次使用需要“屏幕录制”权限；检测到画面为空时弹引导。
+// 截图流程（macOS ⌘⇧4 同款“实时模式”）：
+//   1. 每块屏幕盖一层完全透明的全屏窗口（十字光标，只在上面画选框边线）
+//   2. 用户在实时屏幕上拖框；松手时先把所有遮罩隐藏（避免被截进去）
+//   3. 隐藏 ~200ms 后用 desktopCapturer 截取该屏幕，按框裁剪 → 送去 OCR
+// 优点：屏幕不冻结、无整屏变暗；只在松手瞬间才发生真正的截屏。
 const {
   desktopCapturer,
   screen,
@@ -15,7 +15,7 @@ const {
 } = require('electron');
 const path = require('path');
 
-let overlays = []; // {win, image, display}
+let overlays = []; // {win, display}
 let inFlight = false;
 
 function openScreenRecordingGuide() {
@@ -23,7 +23,8 @@ function openScreenRecordingGuide() {
     type: 'warning',
     title: '需要屏幕录制权限',
     message: 'SnapText 需要「屏幕录制」权限才能截取屏幕。',
-    detail: '请在 系统设置 → 隐私与安全性 → 屏幕录制 中勾选 SnapText（或正在运行的终端/Electron），然后重启应用。',
+    detail:
+      '请在 系统设置 → 隐私与安全性 → 屏幕录制 中勾选 SnapText（或正在运行的终端/Electron），然后重启应用。',
     buttons: ['打开系统设置', '取消'],
     defaultId: 0,
   }).then(({ response }) => {
@@ -35,7 +36,7 @@ function openScreenRecordingGuide() {
   });
 }
 
-async function start(onSelected) {
+async function start() {
   if (inFlight) return;
   inFlight = true;
   try {
@@ -50,44 +51,14 @@ async function start(onSelected) {
       return;
     }
 
-    const displays = screen.getAllDisplays();
-
-    // thumbnailSize 取所有屏幕中最大的像素需求，避免高分屏截图被缩小
-    let tw = 0;
-    let th = 0;
-    for (const d of displays) {
-      const s = d.scaleFactor || 1;
-      tw = Math.max(tw, Math.ceil(d.bounds.width * s));
-      th = Math.max(th, Math.ceil(d.bounds.height * s));
-    }
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: tw, height: th },
-    });
-    if (sources.length === 0) throw new Error('NO_SOURCES');
-    console.log(
-      '[capture] sources:', sources.length,
-      'emptyThumbnails:', sources.filter((s) => s.thumbnail.isEmpty()).length
-    );
-
-    let gotAny = false;
-    for (const d of displays) {
-      // 优先用 display_id 匹配，失败则按顺序兜底
-      let src =
-        sources.find(
-          (s) => s.display_id && s.display_id === String(d.id)
-        ) || sources[displays.indexOf(d)] || sources[0];
-      if (!src) continue;
-      const image = src.thumbnail;
-      if (image.isEmpty()) continue; // 无权限的屏幕会返回空图
-      gotAny = true;
-
+    for (const d of screen.getAllDisplays()) {
       const win = new BrowserWindow({
         x: d.bounds.x,
         y: d.bounds.y,
         width: d.bounds.width,
         height: d.bounds.height,
         frame: false,
+        transparent: true,
         resizable: false,
         movable: false,
         minimizable: false,
@@ -95,7 +66,7 @@ async function start(onSelected) {
         skipTaskbar: true,
         alwaysOnTop: true,
         hasShadow: false,
-        backgroundColor: '#000000',
+        backgroundColor: '#00000000',
         show: false,
         webPreferences: {
           nodeIntegration: true,
@@ -103,27 +74,14 @@ async function start(onSelected) {
         },
       });
       win.setAlwaysOnTop(true, 'screen-saver');
-      const entry = { win, image, display: d };
-      overlays.push(entry);
+      overlays.push({ win, display: d });
       await win.loadFile(path.join(__dirname, '..', 'renderer', 'overlay', 'index.html'));
-      win.webContents.send('overlay:init', {
-        displayId: d.id,
-        imageUrl: image.toDataURL(),
-        bounds: d.bounds,
-        imgSize: image.getSize(),
-      });
+      win.webContents.send('overlay:init', { displayId: d.id });
       win.show();
-    }
-
-    if (!gotAny) {
-      cleanup();
-      openScreenRecordingGuide();
-      return;
     }
   } catch (err) {
     cleanup();
-    if (String(err.message || err).includes('NO_SOURCES')) openScreenRecordingGuide();
-    else throw err;
+    throw err;
   }
 }
 
@@ -135,24 +93,61 @@ function cleanup() {
   inFlight = false;
 }
 
+async function captureDisplay(display) {
+  const s = display.scaleFactor || 1;
+  const sources = await desktopCapturer.getSources({
+    types: ['screen'],
+    thumbnailSize: {
+      width: Math.ceil(display.bounds.width * s),
+      height: Math.ceil(display.bounds.height * s),
+    },
+  });
+  const src =
+    sources.find((x) => x.display_id === String(display.id)) || sources[0];
+  console.log(
+    '[capture] sources:', sources.length,
+    'emptyThumbnails:', sources.filter((x) => x.thumbnail.isEmpty()).length
+  );
+  if (!src || src.thumbnail.isEmpty()) return null;
+  return src.thumbnail;
+}
+
 function wire(onSelected) {
   ipcMain.on('capture:selected', (_e, payload) => {
     const entry = overlays.find((o) => o.display.id === payload.displayId);
-    cleanup(); // 先收起遮罩，体验更干脆
-    if (!entry) return;
-    const { image, display } = entry;
-    const size = image.getSize();
-    const sx = size.width / display.bounds.width;
-    const sy = size.height / display.bounds.height;
+    if (!entry) {
+      cleanup();
+      return;
+    }
+    // 先隐藏所有遮罩，等合成器刷新一帧后再截屏，避免把遮罩截进去
+    for (const o of overlays) o.win.hide();
+    const { display } = entry;
     const rect = payload.rect; // CSS 像素，相对该屏幕
-    const crop = {
-      x: Math.max(0, Math.round(rect.x * sx)),
-      y: Math.max(0, Math.round(rect.y * sy)),
-      width: Math.max(1, Math.round(rect.width * sx)),
-      height: Math.max(1, Math.round(rect.height * sy)),
-    };
-    const cropped = image.crop(crop);
-    onSelected(cropped, display, payload.isFull ? null : rect);
+
+    setTimeout(async () => {
+      try {
+        const image = await captureDisplay(display);
+        if (!image) {
+          cleanup();
+          openScreenRecordingGuide();
+          return;
+        }
+        const size = image.getSize();
+        const sx = size.width / display.bounds.width;
+        const sy = size.height / display.bounds.height;
+        const cropped = image.crop({
+          x: Math.max(0, Math.round(rect.x * sx)),
+          y: Math.max(0, Math.round(rect.y * sy)),
+          width: Math.max(1, Math.round(rect.width * sx)),
+          height: Math.max(1, Math.round(rect.height * sy)),
+        });
+        cleanup();
+        onSelected(cropped, display, payload.isFull ? null : rect);
+      } catch (err) {
+        cleanup();
+        console.error('[capture] failed:', err);
+      }
+    }, 200);
   });
   ipcMain.on('capture:cancelled', () => cleanup());
 }

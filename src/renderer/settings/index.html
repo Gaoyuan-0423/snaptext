@@ -32,6 +32,15 @@
   </div>
 
   <div class="row">
+    <label>识别引擎</label>
+    <select id="ocrEngine">
+      <option value="auto">自动（macOS 用系统 Vision，更快更准）</option>
+      <option value="native">系统原生 Vision（仅 macOS）</option>
+      <option value="tesseract">Tesseract（跨平台）</option>
+    </select>
+  </div>
+
+  <div class="row">
     <label>识别语言</label>
     <select id="ocrLangs">
       <option value="chi_sim+eng">中文简体 + 英文</option>
@@ -94,6 +103,7 @@
     (async () => {
       const s = await ipcRenderer.invoke('settings:get');
       $('shortcut').value = s.shortcut;
+      $('ocrEngine').value = s.ocrEngine;
       $('ocrLangs').value = s.ocrLangs;
       $('provider').value = s.provider;
       $('libreUrl').value = s.libreUrl;
@@ -110,6 +120,7 @@
     $('save').onclick = () => {
       ipcRenderer.send('settings:save', {
         shortcut: $('shortcut').value.trim(),
+        ocrEngine: $('ocrEngine').value,
         ocrLangs: $('ocrLangs').value,
         provider: $('provider').value,
         libreUrl: $('libreUrl').value.trim(),
