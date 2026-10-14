@@ -40,15 +40,19 @@ app.whenReady().then(async () => {
       if (!ok) code = 1;
     }
 
-    // 引擎二：系统 Vision（中英文断言，中文不应有字间空格）
+    // 引擎二：系统 Vision（中英文断言 + 行顺序断言：上行应先于下行出现）
     if (ocr.visionAvailable()) {
       const t0 = Date.now();
       const text = await ocr.recognizeBuffer(buf, 'chi_sim+eng', 'native');
       const okEn = /12345/.test(text);
       const okZh = /截图识字无空格测试/.test(text);
-      console.log(`[vision]    ${((Date.now() - t0) / 1000).toFixed(1)}s →`, okEn && okZh ? 'PASS' : 'FAIL');
+      const okOrder = text.indexOf('12345') < text.indexOf('截图识字');
+      console.log(
+        `[vision]    ${((Date.now() - t0) / 1000).toFixed(1)}s →`,
+        okEn && okZh && okOrder ? 'PASS' : `FAIL(en:${okEn} zh:${okZh} order:${okOrder})`
+      );
       console.log('  输出:', JSON.stringify(text.replace(/\\n/g, ' ').slice(0, 80)));
-      if (!(okEn && okZh)) code = 1;
+      if (!(okEn && okZh && okOrder)) code = 1;
     } else {
       console.log('[vision]    跳过（未编译 helper，macOS 运行 bash scripts/build-vision-helper.sh）');
     }

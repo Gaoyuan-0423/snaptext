@@ -27,10 +27,18 @@ func runRecognition(languages: [String]) throws -> String {
     request.usesLanguageCorrection = true
     let handler = VNImageRequestHandler(cgImage: image)
     try handler.perform([request])
-    // Vision 的观测结果默认自下而上，反转为阅读顺序
-    let lines = (request.results ?? []).reversed().compactMap {
-        $0.topCandidates(1).first?.string
+    // Vision 返回顺序不保证是阅读顺序：按归一化 boundingBox 重排
+    // （原点在左下角，故「从上到下」= minY 降序；同一视觉行内按 minX 升序）
+    let sorted = (request.results ?? []).sorted { a, b in
+        let ab = a.boundingBox
+        let bb = b.boundingBox
+        let tolerance = min(ab.height, bb.height) * 0.4 // 同一行容差
+        if abs(ab.minY - bb.minY) > tolerance {
+            return ab.minY > bb.minY
+        }
+        return ab.minX < bb.minX
     }
+    let lines = sorted.compactMap { $0.topCandidates(1).first?.string }
     return lines.joined(separator: "\n")
 }
 
