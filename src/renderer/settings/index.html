@@ -11,7 +11,7 @@
     .row { display: flex; align-items: center; margin-bottom: 14px; gap: 10px; }
     .row label { width: 110px; color: #374151; flex-shrink: 0; }
     .row .hint { font-size: 12px; color: #9ca3af; margin-top: 2px; }
-    select, input[type=text] { flex: 1; font: inherit; padding: 5px 8px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; }
+    select, input[type=text], input[type=password] { flex: 1; font: inherit; padding: 5px 8px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff; }
     select:focus, input:focus { outline: 2px solid rgba(59,130,246,.35); border-color: #3b82f6; }
     footer { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 8px; background: #fff; }
     button { font: inherit; padding: 5px 18px; border-radius: 6px; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; }
@@ -55,21 +55,24 @@
   <div class="row">
     <label>翻译服务</label>
     <select id="provider">
-      <option value="google">Google 免费接口（无需密钥）</option>
       <option value="libre">LibreTranslate（可自建）</option>
     </select>
   </div>
 
-  <div class="row hidden" id="libreRow">
+  <div class="row" id="libreRow">
     <label>Libre 地址</label>
-    <input type="text" id="libreUrl" placeholder="https://libretranslate.com" />
+    <input type="text" id="libreUrl" placeholder="填写你选择的 LibreTranslate HTTPS 地址" />
   </div>
 
+  <div class="row" id="libreKeyRow">
+    <label>Libre API Key</label><input type="password" id="libreApiKey" autocomplete="off" placeholder="实例需要密钥时填写，仅保存在本机" />
+  </div>
+  <p style="font-size:12px;color:#6b7280">翻译需先配置服务，OCR 无需配置。点击翻译才发送文字和 API Key；服务商可见 IP 地址，其费用和隐私政策由服务商决定。密钥仅保存在本机；自建实例无需密钥时可留空。远程服务须使用 HTTPS。</p>
   <div class="row">
     <label>翻译成</label>
     <select id="targetLang">
-      <option value="zh-CN">中文（简体）</option>
-      <option value="zh-TW">中文（繁体）</option>
+      <option value="zh">中文（简体）</option>
+      <option value="zt">中文（繁体，需实例支持）</option>
       <option value="en">English</option>
       <option value="ja">日本語</option>
       <option value="ko">한국어</option>
@@ -97,7 +100,7 @@
 
   <script>
     'use strict';
-    const { ipcRenderer } = require('electron');
+    const ipcRenderer = window.snaptext;
     const $ = (id) => document.getElementById(id);
 
     (async () => {
@@ -107,29 +110,29 @@
       $('ocrLangs').value = s.ocrLangs;
       $('provider').value = s.provider;
       $('libreUrl').value = s.libreUrl;
+      $('libreApiKey').value = s.libreApiKey || '';
       $('targetLang').value = s.targetLang;
       $('autoCopy').checked = s.autoCopy;
       $('launchAtLogin').checked = s.launchAtLogin;
-      $('libreRow').classList.toggle('hidden', s.provider !== 'libre');
     })();
 
-    $('provider').onchange = () => {
-      $('libreRow').classList.toggle('hidden', $('provider').value !== 'libre');
-    };
-
-    $('save').onclick = () => {
-      ipcRenderer.send('settings:save', {
+    $('save').onclick = async () => {
+      try {
+      await ipcRenderer.invoke('settings:save', {
         shortcut: $('shortcut').value.trim(),
         ocrEngine: $('ocrEngine').value,
         ocrLangs: $('ocrLangs').value,
         provider: $('provider').value,
         libreUrl: $('libreUrl').value.trim(),
+        libreApiKey: $('libreApiKey').value.trim(),
         targetLang: $('targetLang').value,
         autoCopy: $('autoCopy').checked,
         launchAtLogin: $('launchAtLogin').checked,
       });
+      $('saved').textContent = '已保存 ✓';
       $('saved').style.opacity = 1;
       setTimeout(() => ($('saved').style.opacity = 0), 1500);
+      } catch (error) { $('saved').textContent = '保存失败：' + error.message; $('saved').style.opacity = 1; }
     };
 
     $('cancel').onclick = () => window.close();

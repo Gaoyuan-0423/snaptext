@@ -1,6 +1,6 @@
 'use strict';
 // 生成应用图标（纯 Node，无依赖）：用 SDF 画圆角矩形 + 抗锯齿，直接编码 PNG。
-//   build/icon.png                    512 彩色应用图标（electron-builder 会自动转 icns/ico）
+//   build/icon.png                    1024 彩色应用图标（包含商店要求的 512@2x）
 //   resources/icons/trayTemplate.png  32  黑白模板托盘图标（macOS）
 //   resources/icons/icon-32.png       32  彩色托盘图标（Windows）
 const fs = require('fs');
@@ -131,7 +131,7 @@ function render(size, { withBg, mono }) {
 }
 
 const root = path.join(__dirname, '..');
-writePNG(path.join(root, 'build', 'icon.png'), 512, 512, render(512, { withBg: true, mono: false }));
+writePNG(path.join(root, 'build', 'icon.png'), 1024, 1024, render(1024, { withBg: true, mono: false }));
 writePNG(path.join(root, 'resources', 'icons', 'trayTemplate.png'), 32, 32, render(32, { withBg: false, mono: true }));
 writePNG(path.join(root, 'resources', 'icons', 'icon-32.png'), 32, 32, render(32, { withBg: true, mono: false }));
 console.log('done.');

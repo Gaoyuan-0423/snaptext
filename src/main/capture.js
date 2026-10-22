@@ -14,6 +14,8 @@ const {
   systemPreferences,
 } = require('electron');
 const path = require('path');
+const security = require('./window-security');
+const { validateRect } = require('./validation');
 
 let overlays = []; // {win, display}
 let inFlight = false;
@@ -45,7 +47,7 @@ async function start() {
       ? systemPreferences.getMediaAccessStatus('screen')
       : 'granted';
     console.log('[capture] screen media access status:', mediaStatus);
-    if (mediaStatus === 'denied') {
+    if (mediaStatus === 'denied' || mediaStatus === 'restricted') {
       cleanup();
       openScreenRecordingGuide();
       return;
@@ -68,11 +70,9 @@ async function start() {
         hasShadow: false,
         backgroundColor: '#00000000',
         show: false,
-        webPreferences: {
-          nodeIntegration: true,
-          contextIsolation: false,
-        },
+        webPreferences: security.preferences(),
       });
+      security.harden(win);
       win.setAlwaysOnTop(true, 'screen-saver');
       overlays.push({ win, display: d });
       await win.loadFile(path.join(__dirname, '..', 'renderer', 'overlay', 'index.html'));
@@ -113,16 +113,15 @@ async function captureDisplay(display) {
 }
 
 function wire(onSelected) {
-  ipcMain.on('capture:selected', (_e, payload) => {
-    const entry = overlays.find((o) => o.display.id === payload.displayId);
-    if (!entry) {
-      cleanup();
-      return;
-    }
+  ipcMain.on('capture:selected', (event, payload) => {
+    if (!payload || typeof payload !== 'object') return;
+    const entry = overlays.find((o) => o.display.id === payload.displayId && security.fromWindow(event, o.win, 'overlay'));
+    if (!entry) return;
     // 先隐藏所有遮罩，等合成器刷新一帧后再截屏，避免把遮罩截进去
     for (const o of overlays) o.win.hide();
     const { display } = entry;
-    const rect = payload.rect; // CSS 像素，相对该屏幕
+    const rect = validateRect(payload.rect, display.bounds);
+    if (!rect) { cleanup(); return; }
 
     setTimeout(async () => {
       try {
@@ -142,14 +141,16 @@ function wire(onSelected) {
           height: Math.max(1, Math.round(rect.height * sy)),
         });
         cleanup();
-        onSelected(cropped, display, payload.isFull ? null : rect);
+        await onSelected(cropped, display, payload.isFull ? null : rect);
       } catch (err) {
         cleanup();
         console.error('[capture] failed:', err);
       }
     }, 200);
   });
-  ipcMain.on('capture:cancelled', () => cleanup());
+  ipcMain.on('capture:cancelled', (event) => {
+    if (overlays.some(o => security.fromWindow(event, o.win, 'overlay'))) cleanup();
+  });
 }
 
 module.exports = { start, wire };

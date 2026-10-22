@@ -3,9 +3,8 @@
 // 分别走 Tesseract 与系统 Vision 两条管道（Vision 可用时）。
 // 运行：npm run test:ocr   （预期每个引擎输出 PASS，退出码 0）
 const { app, BrowserWindow } = require('electron');
-const path = require('path');
 
-const ocr = require(path.join(__dirname, '..', 'src', 'main', 'ocr'));
+const ocr = require('../src/main/ocr');
 
 const CANVAS_JS = `(() => {
   const c = document.createElement('canvas');
@@ -40,15 +39,16 @@ app.whenReady().then(async () => {
       if (!ok) code = 1;
     }
 
-    // 引擎二：系统 Vision（中英文断言 + 行顺序断言：上行应先于下行出现）
+    // 引擎二：auto 路由（健康时走 Vision，中文模型卡死时自动降级 Tesseract）
     if (ocr.visionAvailable()) {
       const t0 = Date.now();
-      const text = await ocr.recognizeBuffer(buf, 'chi_sim+eng', 'native');
+      const text = await ocr.recognizeBuffer(buf, 'chi_sim+eng', 'auto');
       const okEn = /12345/.test(text);
-      const okZh = /截图识字无空格测试/.test(text);
-      const okOrder = text.indexOf('12345') < text.indexOf('截图识字');
+      // Tesseract 中文可能带字间空格，断言容忍空白
+      const okZh = /截\s*图\s*识\s*字/.test(text);
+      const okOrder = text.indexOf('12345') < text.indexOf('截');
       console.log(
-        `[vision]    ${((Date.now() - t0) / 1000).toFixed(1)}s →`,
+        `[auto]      ${((Date.now() - t0) / 1000).toFixed(1)}s →`,
         okEn && okZh && okOrder ? 'PASS' : `FAIL(en:${okEn} zh:${okZh} order:${okOrder})`
       );
       console.log('  输出:', JSON.stringify(text.replace(/\\n/g, ' ').slice(0, 80)));

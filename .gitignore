@@ -1,4 +1,5 @@
 node_modules/
+.cache/
 dist/
 out/
 build/*.icns
@@ -10,3 +11,5 @@ resources/tessdata/*.traineddata
 resources/tessdata/*.traineddata.gz
 # Vision helper 由 scripts/build-vision-helper.sh 编译生成
 resources/bin/
+# Mimosa 安全扫描缓存
+.mimosa/

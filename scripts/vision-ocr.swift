@@ -22,7 +22,9 @@ else { fail("cannot load image: \(args[1])") }
 
 func runRecognition(languages: [String]) throws -> String {
     let request = VNRecognizeTextRequest()
-    request.recognitionLevel = .accurate
+    // 注意：macOS 27.0.1 上 .accurate 模式（VNCRImageReaderDetector 管线）会无限死循环，
+    // .fast（Live Text 管线）0.1~0.3 秒稳定完成且中文质量依然很好，故固定用 .fast。
+    request.recognitionLevel = .fast
     request.recognitionLanguages = languages
     request.usesLanguageCorrection = true
     let handler = VNImageRequestHandler(cgImage: image)

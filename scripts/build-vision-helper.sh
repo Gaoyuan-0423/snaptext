@@ -3,6 +3,6 @@
 set -e
 cd "$(dirname "$0")/.."
 mkdir -p resources/bin
-MACOSX_DEPLOYMENT_TARGET=11.0 swiftc -O \
+MACOSX_DEPLOYMENT_TARGET=13.0 swiftc -O -target "${ARCH:-arm64}-apple-macosx13.0" \
   -o resources/bin/vision-ocr scripts/vision-ocr.swift
 echo "built: $(file resources/bin/vision-ocr)"

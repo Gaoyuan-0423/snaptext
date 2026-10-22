@@ -1,7 +1,7 @@
 {
   "name": "snaptext",
-  "version": "0.2.0",
-  "description": "Screenshot → OCR → Translate. Free & open-source, works offline. 截图识字：免费开源的截图文字识别与翻译工具（macOS / Windows）",
+  "version": "0.2.1",
+  "description": "Screenshot OCR on device with optional online translation. 免费开源的截图识字与在线翻译工具。",
   "main": "src/main/main.js",
   "license": "MIT",
   "repository": {
@@ -13,14 +13,17 @@
     "test:ocr": "electron scripts/test-ocr.js",
     "fetch:tessdata": "node scripts/fetch-tessdata.js",
     "icons": "node scripts/gen-icons.js",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "test": "node --test tests/*.test.js",
+    "dist:mas": "electron-builder --config electron-builder.mas.cjs --publish never",
+    "install:electron": "node node_modules/electron/install.js"
   },
   "dependencies": {
     "tesseract.js": "^5.1.1"
   },
   "devDependencies": {
-    "electron": "^33.2.0",
-    "electron-builder": "^25.1.8"
+    "electron": "45.0.0",
+    "electron-builder": "26.15.3"
   },
   "build": {
     "appId": "org.snaptext.app",
@@ -32,6 +35,7 @@
       "src/**/*",
       "resources/icons/*",
       "resources/bin/*",
+      "resources/probe-zh.png",
       "!**/*.md"
     ],
     "extraResources": [
@@ -46,7 +50,8 @@
     "asarUnpack": [
       "node_modules/tesseract.js/**",
       "node_modules/tesseract.js-core/**",
-      "resources/bin/**"
+      "resources/bin/**",
+      "resources/probe-zh.png"
     ],
     "mac": {
       "category": "public.app-category.utilities",

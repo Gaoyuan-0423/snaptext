@@ -15,10 +15,13 @@ const { Settings } = require('./settings');
 const capture = require('./capture');
 const ocr = require('./ocr');
 const { translate } = require('./translate');
+const security = require('./window-security');
+const { validateText, validateSettings } = require('./validation');
 
 let settings = null;
 let tray = null;
 let resultWin = null;
+let resultReady = null;
 let settingsWin = null;
 
 // ---------- 托盘 ----------
@@ -83,11 +86,13 @@ function registerShortcut() {
 // ---------- 截图 → OCR → 结果窗 ----------
 
 function startCapture() {
-  capture.start(); // 选区结果由 wire() 里的回调处理
+  capture.start().catch(err => dialog.showErrorBox('截图失败', err.message));
 }
 
 async function onSelected(image, display, rect) {
   const win = ensureResultWindow();
+  await resultReady;
+  if (win.isDestroyed()) return;
   const bounds = display.workArea;
   // 结果窗尽量出现在选区附近（workArea 内）
   const cx = rect ? display.bounds.x + rect.x + rect.width / 2 : bounds.x + bounds.width / 2;
@@ -143,12 +148,10 @@ function ensureResultWindow() {
     skipTaskbar: true,
     show: false,
     backgroundColor: '#ffffff',
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-    },
+    webPreferences: security.preferences(),
   });
-  resultWin.loadFile(
+  security.harden(resultWin);
+  resultReady = resultWin.loadFile(
     path.join(__dirname, '..', 'renderer', 'result', 'index.html')
   );
   resultWin.on('closed', () => (resultWin = null));
@@ -165,15 +168,13 @@ function openSettings() {
   }
   settingsWin = new BrowserWindow({
     width: 480,
-    height: 620,
+    height: 720,
     resizable: false,
     title: 'SnapText 设置',
     show: false,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-    },
+    webPreferences: security.preferences(),
   });
+  security.harden(settingsWin);
   settingsWin.loadFile(
     path.join(__dirname, '..', 'renderer', 'settings', 'index.html')
   );
@@ -199,8 +200,9 @@ function about() {
     message: 'SnapText 截图识字',
     detail:
       `版本 ${app.getVersion()}\n\n` +
-      '截图 → 本地 OCR → 免费翻译\n' +
-      'OCR 完全离线（Tesseract，Apache-2.0）。\n' +
+      '截图 → 本地 OCR → 在线翻译\n' +
+      'macOS 支持系统 Vision；Tesseract 缺少语言包时需下载。\n' +
+      '翻译会向选定服务发送文字；可用性与费用取决于服务。\n' +
       '开源软件，遵循 MIT 许可证。\n' +
       'https://github.com/Gaoyuan-0423/snaptext',
     buttons: ['好的'],
@@ -212,9 +214,14 @@ function about() {
 function wireIpc() {
   capture.wire(onSelected);
 
-  ipcMain.handle('settings:get', () => settings.all());
+  ipcMain.handle('settings:get', (event) => {
+    if (!security.fromWindow(event, settingsWin, 'settings')) throw new Error('请求来源无效');
+    return settings.all();
+  });
 
-  ipcMain.on('settings:save', (_e, partial) => {
+  ipcMain.handle('settings:save', (event, input) => {
+    if (!security.fromWindow(event, settingsWin, 'settings')) throw new Error('请求来源无效');
+    const partial = validateSettings(input);
     const prevShortcut = settings.get('shortcut');
     settings.patch(partial);
     if (partial.shortcut && partial.shortcut !== prevShortcut) {
@@ -233,21 +240,26 @@ function wireIpc() {
       }
     }
     if (tray) tray.setContextMenu(buildTrayMenu());
+    return settings.all();
   });
 
-  ipcMain.handle('translate:run', async (_e, text) => {
-    return translate(text, {
+  ipcMain.handle('translate:run', async (event, text) => {
+    if (!security.fromWindow(event, resultWin, 'result')) throw new Error('请求来源无效');
+    return translate(validateText(text), {
       provider: settings.get('provider'),
       targetLang: settings.get('targetLang'),
       libreUrl: settings.get('libreUrl'),
+      libreApiKey: settings.get('libreApiKey'),
     });
   });
 
-  ipcMain.on('result:close', () => resultWin && resultWin.close());
-  ipcMain.on('result:toggle-pin', () => {
-    if (resultWin) resultWin.setAlwaysOnTop(!resultWin.isAlwaysOnTop());
+  ipcMain.on('result:close', (event) => { if (security.fromWindow(event, resultWin, 'result')) resultWin.close(); });
+  ipcMain.on('result:toggle-pin', (event) => {
+    if (security.fromWindow(event, resultWin, 'result')) resultWin.setAlwaysOnTop(!resultWin.isAlwaysOnTop());
   });
-  ipcMain.on('copy:text', (_e, text) => clipboard.writeText(text));
+  ipcMain.on('copy:text', (event, text) => {
+    if (security.fromWindow(event, resultWin, 'result') && typeof text === 'string' && text.length <= 100000) clipboard.writeText(text);
+  });
 }
 
 // ---------- 生命周期 ----------
@@ -271,6 +283,7 @@ app.whenReady().then(() => {
     );
   }
   wireIpc();
+  if (process.argv.includes('--snaptext-settings')) openSettings();
   // 调试/测试入口：electron . --snaptext-capture 启动后直接触发一次截图流程
   if (process.argv.includes('--snaptext-capture')) {
     setTimeout(() => startCapture(), 800);

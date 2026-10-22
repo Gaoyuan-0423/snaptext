@@ -21,7 +21,7 @@
   <div id="tip">拖拽框选要识别的区域 · 双击全屏 · Esc / 右键取消</div>
   <script>
     'use strict';
-    const { ipcRenderer } = require('electron');
+    const ipcRenderer = window.snaptext;
 
     let displayId = null;
     let start = null;
