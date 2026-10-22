@@ -1,6 +1,6 @@
 # SnapText 隐私政策 / Privacy Policy
 
-更新日期：2026-10-22。适用版本：SnapText 0.2.1（2）的 macOS App Store 构建。
+更新日期：2026-10-22。适用版本：SnapText 0.2.1（3）的 macOS App Store 构建。旧 build 2 的差异见下文。
 开发者：Yuan Gao。联系邮箱：[gaoyuan1799@163.com](mailto:gaoyuan1799@163.com)。
 
 ## 截图与文字识别
@@ -9,11 +9,14 @@
 macOS 屏幕录制权限用于截图。你可以在系统设置中撤销权限，撤销后截图功能将不可用。
 
 ## 在线翻译
-只有点击“翻译”时，应用才向设置中选择的 Google 接口或 LibreTranslate 实例发送待翻译文字与语言参数。截图不包含在翻译请求中。服务提供方还可能接收到 IP 地址等网络请求信息；如果你配置了 LibreTranslate API key，该 key 会发送给你配置的实例。
+只有点击“翻译”时，应用才向你配置的 LibreTranslate 实例发送待翻译文字与语言参数。截图不包含在翻译请求中。服务提供方还可能接收到 IP 地址等网络请求信息；如果你配置了 LibreTranslate API key，该 key 会发送给你配置的实例。
 
 第三方服务的数据保存与处理由其自身政策决定。开发者无法保证第三方不会记录请求。请不要提交不希望分享给该服务的内容。你可以仅使用 OCR，不使用在线翻译。
-- Google：[隐私政策](https://policies.google.com/privacy)
-- LibreTranslate：请查看你所选实例运营方的隐私政策；不同实例可能不同。
+默认服务地址为空，不配置服务不会发送翻译请求。远程服务要求 HTTPS；本机自建实例可用 HTTP。
+
+LibreTranslate 官方托管服务的[隐私政策](https://portal.libretranslate.com/privacy.html)声明不存储或记录翻译文本，但为防滥用会暂存 IP 地址与关联 API Key 两天，可能通过购买 Key 的账户关联到用户。该政策只适用于 libretranslate.com 及相关子域名，不代表所有自建或第三方实例。请核对你所选实例的政策。
+
+旧版本说明：0.2.1（2）还提供 Google 非官方翻译端点，点击该选项的翻译会向 Google 发送文字及语言参数，并受 [Google 隐私政策](https://policies.google.com/privacy)约束。升级到 build 3 后该选项已移除，原 Google 用户需自行配置 LibreTranslate。
 
 ## 语言数据与本地设置
 Tesseract 缺少所选语言文件时可能下载语言数据。下载不会上传你的截图，但下载服务器会收到正常网络请求。
@@ -32,12 +35,14 @@ Tesseract 缺少所选语言文件时可能下载语言数据。下载不会上�
 
 ## English
 
-Updated: October 22, 2026. Applies to the macOS App Store build SnapText 0.2.1 (2).
+Updated: October 22, 2026. Applies to the macOS App Store build SnapText 0.2.1 (3). See the legacy note below for build 2.
 Developer: Yuan Gao. Contact: **gaoyuan1799@163.com**.
 
 Screenshots are captured when you initiate a capture and processed locally by OCR. Images are not uploaded to the developer or translation providers. The macOS Vision flow uses a local temporary image file and attempts to remove it after success or failure; abnormal termination may leave a temporary file. You may revoke screen recording permission in macOS Settings.
 
-Only when you click Translate does the app send text and language parameters to the Google endpoint or LibreTranslate instance selected in Settings. Images are not included. Providers may receive network information such as your IP address. A configured LibreTranslate API key is sent to the instance you selected. Provider retention and processing are governed by their own policies; the developer cannot guarantee that requests are not logged. Avoid sending sensitive content. You can use OCR without online translation. See [Google's privacy policy](https://policies.google.com/privacy) or the policy of your selected LibreTranslate instance.
+Only when you click Translate does the app send text and language parameters to the LibreTranslate instance you configured in Settings. Images are not included. Providers may receive network information such as your IP address. A configured LibreTranslate API key is sent to the instance you selected. Provider retention and processing are governed by their own policies; the developer cannot guarantee that requests are not logged. Avoid sending sensitive content. You can use OCR without online translation. There is no default translation endpoint. Remote instances require HTTPS; local instances may use HTTP. The official hosted service's [privacy policy](https://portal.libretranslate.com/privacy.html) says translation texts are not stored or logged, but IP addresses and associated API keys are temporarily recorded for two days to prevent abuse and may be linked via a key purchase account. This applies only to libretranslate.com and related subdomains; other instances have their own policies.
+
+Legacy build 0.2.1 (2) also offered an unofficial Google translation endpoint governed by [Google's privacy policy](https://policies.google.com/privacy). Build 3 removes that option and requires former Google users to configure LibreTranslate explicitly.
 
 Missing Tesseract language data may be downloaded without uploading screenshots. Download hosts receive normal network request information. Settings, language caches and any configured LibreTranslate API key are stored locally. The key is currently stored in the settings file, which should not be shared. No persistent OCR history is provided. Automatic copying writes recognized text to the system clipboard; this can be disabled. The system and other authorized apps may access the clipboard.
 
